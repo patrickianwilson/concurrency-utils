@@ -10,13 +10,13 @@ import org.junit.Test;
 /**
  * Created by pwilson on 8/29/16.
  */
-public class ChainedTaskedBuilderTests {
+public class ChainedTaskBuilderTests {
 
     @Test
     public void verifyTasksAreExecutedAsExpected() {
         final AtomicBoolean signal = new AtomicBoolean(false);
         final ExecutorService mainPool = Executors.newFixedThreadPool(2);
-        ChainedTaskedBuilder task = ChainedTaskedBuilder.ChainBuilder.newBuilder(mainPool)
+        ChainedTask task = ChainedTask.Builder.newBuilder(mainPool)
                 .startsWith(new Callable<Integer>() {
                     @Override
                     public Integer call() throws Exception {
@@ -26,7 +26,7 @@ public class ChainedTaskedBuilderTests {
 
 
                 })
-                .thenIfSuccessful(new <Integer, Integer>ChainedTaskedBuilder.BaseChainedCallable() {
+                .thenIfSuccessful(new <Integer, Integer>ChainedTask.BaseChainedCallable() {
                     @Override
                     public Integer call() throws Exception {
                         System.out.println("Long running task.  will sleep for 5 seconds.");
@@ -42,7 +42,7 @@ public class ChainedTaskedBuilderTests {
                         return null;
                     }
                 })
-                .thenIfSuccessful(new <Integer, String>ChainedTaskedBuilder.BaseChainedCallable() {
+                .thenIfSuccessful(new <Integer, String>ChainedTask.BaseChainedCallable() {
                     @Override
                     public String call() throws Exception {
 

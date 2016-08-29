@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by pwilson on 8/29/16.
  */
-public class ChainedTaskedBuilder<T> implements Runnable {
-    private ChainedTaskedBuilder<?> next;
+public class ChainedTask<T> implements Runnable {
+    private ChainedTask<?> next;
     private final AtomicInteger outstandingTasks;
     private final AtomicBoolean chainComplete;
 
@@ -21,7 +21,7 @@ public class ChainedTaskedBuilder<T> implements Runnable {
     private final List<Callable> exceptionHandler = new ArrayList<>();
     private Object input;
 
-    public ChainedTaskedBuilder(Callable work, ExecutorService nextExecutor, AtomicInteger outstandingTasks, AtomicBoolean chainComplete) {
+    public ChainedTask(Callable work, ExecutorService nextExecutor, AtomicInteger outstandingTasks, AtomicBoolean chainComplete) {
         this.work = work;
         this.executor = nextExecutor;
         this.chainComplete = chainComplete;
@@ -29,44 +29,44 @@ public class ChainedTaskedBuilder<T> implements Runnable {
 
     }
 
-    public final static class ChainBuilder<OUTCOME> {
+    public final static class Builder<OUTCOME> {
 
-        private ChainedTaskedBuilder<OUTCOME> head = null;
-        private ChainedTaskedBuilder<?> tail = null;
+        private ChainedTask<OUTCOME> head = null;
+        private ChainedTask<?> tail = null;
         private ExecutorService mainExecutor;
 
-        private ChainBuilder(ExecutorService e) {
+        private Builder(ExecutorService e) {
             this.mainExecutor = e;
         }
 
-        public static <OUTCOME> ChainBuilder<OUTCOME> newBuilder(ExecutorService e) {
-            return new ChainBuilder<>(e);
+        public static <OUTCOME> Builder<OUTCOME> newBuilder(ExecutorService e) {
+            return new Builder<>(e);
         }
 
-        public ChainBuilder<OUTCOME> startsWith(Callable<?> head) {
-            this.head = new ChainedTaskedBuilder<>(head, this.mainExecutor, new AtomicInteger(0), new AtomicBoolean(false));
+        public Builder<OUTCOME> startsWith(Callable<?> head) {
+            this.head = new ChainedTask<>(head, this.mainExecutor, new AtomicInteger(0), new AtomicBoolean(false));
             this.tail = this.head;
             return this;
         }
 
-        public ChainBuilder<OUTCOME> thenIfSuccessful(Callable<?> next) {
-            this.tail.next = new ChainedTaskedBuilder(next, this.mainExecutor, this.head.outstandingTasks, this.head.chainComplete);
+        public Builder<OUTCOME> thenIfSuccessful(Callable<?> next) {
+            this.tail.next = new ChainedTask(next, this.mainExecutor, this.head.outstandingTasks, this.head.chainComplete);
             this.tail= this.tail.next;
             return this;
         }
 
-        public ChainBuilder<OUTCOME> thenIfSuccessful(Callable<?> next, ExecutorService pool) {
-            this.tail.next = new ChainedTaskedBuilder(next, pool, this.head.outstandingTasks, this.head.chainComplete);
+        public Builder<OUTCOME> thenIfSuccessful(Callable<?> next, ExecutorService pool) {
+            this.tail.next = new ChainedTask(next, pool, this.head.outstandingTasks, this.head.chainComplete);
             this.tail = this.tail.next;
             return this;
         }
 
-        public ChainBuilder<OUTCOME> thenIfException(Callable<?> handler) {
+        public Builder<OUTCOME> thenIfException(Callable<?> handler) {
             this.tail.exceptionHandler.add(handler);
             return this;
         }
 
-        public ChainedTaskedBuilder<OUTCOME> build() {
+        public ChainedTask<OUTCOME> build() {
             return this.head;
         }
 
@@ -88,7 +88,7 @@ public class ChainedTaskedBuilder<T> implements Runnable {
                     if (input != null && work instanceof ChainedCallable) {
                         ((ChainedCallable) work).setInput(input);
                     }
-                    T output = ChainedTaskedBuilder.this.work.call();
+                    T output = ChainedTask.this.work.call();
 
                     if (next != null) {
                         next.input = output;
