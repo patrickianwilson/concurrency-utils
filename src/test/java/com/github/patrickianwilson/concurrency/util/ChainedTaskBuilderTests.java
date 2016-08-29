@@ -17,7 +17,7 @@ public class ChainedTaskBuilderTests {
         final AtomicBoolean signal = new AtomicBoolean(false);
         final ExecutorService mainPool = Executors.newFixedThreadPool(2);
         ChainedTask task = ChainedTask.Builder.newBuilder(mainPool)
-                .startsWith(new Callable<Integer>() {
+                .startsWith(new ChainedCallable<Void, Integer>() {
                     @Override
                     public Integer call() throws Exception {
                         System.out.println("step 1");
@@ -26,23 +26,23 @@ public class ChainedTaskBuilderTests {
 
 
                 })
-                .thenIfSuccessful(new <Integer, Integer>ChainedTask.BaseChainedCallable() {
+                .thenIfSuccessful(new ChainedCallable<Integer, Integer>() {
                     @Override
                     public Integer call() throws Exception {
                         System.out.println("Long running task.  will sleep for 5 seconds.");
                         Thread.sleep(5000);
                         System.out.println (String.format("Sleep done - step 2 - using input: %s", this.input));
-                        return ((Integer)this.input).intValue() + 1;
+                        return this.input.intValue() + 1;
                     }
                 })
-                .thenIfException(new Callable<Object>() {
+                .butIfException(new ChainedCallable<Integer, Void>() {
                     @Override
-                    public Object call() throws Exception {
+                    public Void call() throws Exception {
                         System.out.println("An exception occured.");
                         return null;
                     }
                 })
-                .thenIfSuccessful(new <Integer, String>ChainedTask.BaseChainedCallable() {
+                .thenIfSuccessful(new ChainedCallable<Integer, String>() {
                     @Override
                     public String call() throws Exception {
 
@@ -51,7 +51,7 @@ public class ChainedTaskBuilderTests {
                         return "success";
                     }
                 })
-                .thenIfException(new Callable<Object>() {
+                .butIfException(new ChainedCallable<String, Object>() {
                     @Override
                     public Object call() throws Exception {
                         System.out.println("An exception occured.");

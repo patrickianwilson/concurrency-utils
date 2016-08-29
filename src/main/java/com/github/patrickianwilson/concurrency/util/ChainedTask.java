@@ -17,7 +17,7 @@ public class ChainedTask<T> implements Runnable {
     private final AtomicBoolean chainComplete;
 
     private final Callable<T> work;
-    private final ExecutorService executor;
+    private ExecutorService executor;
     private final List<Callable> exceptionHandler = new ArrayList<>();
     private Object input;
 
@@ -27,6 +27,10 @@ public class ChainedTask<T> implements Runnable {
         this.chainComplete = chainComplete;
         this.outstandingTasks = outstandingTasks;
 
+    }
+
+    public void setPool(ExecutorService pool) {
+        this.executor = pool;
     }
 
     public final static class Builder<OUTCOME> {
@@ -43,25 +47,25 @@ public class ChainedTask<T> implements Runnable {
             return new Builder<>(e);
         }
 
-        public Builder<OUTCOME> startsWith(Callable<?> head) {
+        public Builder<OUTCOME> startsWith(ChainedCallable<?, ?> head) {
             this.head = new ChainedTask<>(head, this.mainExecutor, new AtomicInteger(0), new AtomicBoolean(false));
             this.tail = this.head;
             return this;
         }
 
-        public Builder<OUTCOME> thenIfSuccessful(Callable<?> next) {
+        public Builder<OUTCOME> thenIfSuccessful(ChainedCallable<?, ?> next) {
             this.tail.next = new ChainedTask(next, this.mainExecutor, this.head.outstandingTasks, this.head.chainComplete);
             this.tail= this.tail.next;
             return this;
         }
 
-        public Builder<OUTCOME> thenIfSuccessful(Callable<?> next, ExecutorService pool) {
-            this.tail.next = new ChainedTask(next, pool, this.head.outstandingTasks, this.head.chainComplete);
-            this.tail = this.tail.next;
+
+        public Builder<OUTCOME> andRunInPool(ExecutorService pool) {
+            this.tail.setPool(pool);
             return this;
         }
 
-        public Builder<OUTCOME> thenIfException(Callable<?> handler) {
+        public Builder<OUTCOME> butIfException(ChainedCallable<?, ?> handler) {
             this.tail.exceptionHandler.add(handler);
             return this;
         }
@@ -129,33 +133,6 @@ public class ChainedTask<T> implements Runnable {
 
         return;
 
-    }
-
-    public interface ChainedCallable<I,O> extends Callable<O> {
-        public void setInput(I input);
-        public void setException(Throwable t);
-    }
-
-    public static abstract class BaseChainedCallable<I, O> implements ChainedCallable<I, O> {
-        protected I input;
-        protected Throwable t;
-
-        @Override
-        public void setInput(I input) {
-            this.input = input;
-        }
-
-        public I getInput() {
-            return input;
-        }
-
-        public Throwable getException() {
-            return t;
-        }
-
-        public void setException(Throwable t) {
-            this.t = t;
-        }
     }
 
 }
