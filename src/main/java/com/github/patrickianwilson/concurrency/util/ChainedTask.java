@@ -16,12 +16,12 @@ public class ChainedTask<T> implements Runnable {
     private final AtomicInteger outstandingTasks;
     private final AtomicBoolean chainComplete;
 
-    private final Callable<T> work;
+    private final ChainedCallable<T> work;
     private ExecutorService executor;
-    private final List<Callable> exceptionHandler = new ArrayList<>();
+    private final List<ChainedExceptionHandler> exceptionHandler = new ArrayList<>();
     private Object input;
 
-    public ChainedTask(Callable work, ExecutorService nextExecutor, AtomicInteger outstandingTasks, AtomicBoolean chainComplete) {
+    public ChainedTask(ChainedCallable work, ExecutorService nextExecutor, AtomicInteger outstandingTasks, AtomicBoolean chainComplete) {
         this.work = work;
         this.executor = nextExecutor;
         this.chainComplete = chainComplete;
@@ -47,13 +47,13 @@ public class ChainedTask<T> implements Runnable {
             return new Builder<>(e);
         }
 
-        public Builder<OUTCOME> startsWith(ChainedCallable<?, ?> head) {
+        public Builder<OUTCOME> startsWith(ChainedCallable<?> head) {
             this.head = new ChainedTask<>(head, this.mainExecutor, new AtomicInteger(0), new AtomicBoolean(false));
             this.tail = this.head;
             return this;
         }
 
-        public Builder<OUTCOME> thenIfSuccessful(ChainedCallable<?, ?> next) {
+        public Builder<OUTCOME> thenIfSuccessful(ChainedCallable<?> next) {
             this.tail.next = new ChainedTask(next, this.mainExecutor, this.head.outstandingTasks, this.head.chainComplete);
             this.tail= this.tail.next;
             return this;
@@ -65,7 +65,7 @@ public class ChainedTask<T> implements Runnable {
             return this;
         }
 
-        public Builder<OUTCOME> butIfException(ChainedCallable<?, ?> handler) {
+        public Builder<OUTCOME> butIfException(ChainedExceptionHandler handler) {
             this.tail.exceptionHandler.add(handler);
             return this;
         }
@@ -89,10 +89,8 @@ public class ChainedTask<T> implements Runnable {
             @Override
             public T call() throws Exception {
                 try {
-                    if (input != null && work instanceof ChainedCallable) {
-                        ((ChainedCallable) work).setInput(input);
-                    }
-                    T output = ChainedTask.this.work.call();
+
+                    T output = ChainedTask.this.work.call(input);
 
                     if (next != null) {
                         next.input = output;
@@ -100,12 +98,12 @@ public class ChainedTask<T> implements Runnable {
                     }
                     return output;
                 } catch (Throwable t) {
-                    for (Callable<?> handler: exceptionHandler) {
+                    for (ChainedExceptionHandler handler: exceptionHandler) {
                         try {
-                            if (handler instanceof ChainedCallable) {
-                                ((ChainedCallable) handler).setException(t);
-                            }
-                            handler.call();
+                            handler.call(t);
+                        } catch(InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return null;
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
