@@ -1,0 +1,29 @@
+ext {
+    GSON_VERSION = "2.2.4"
+    JERSEY_VERSION = '1.17.1'
+}
+
+
+configurations {
+//    all*.exclude group: 'javax.servlet', module: 'servlet-api'
+//    all*.exclude group: "javax.rs.ws", module: 'jsr311-api' //we don't want JSR311 jars- they are the wrong version.
+}
+
+
+dependencies {
+
+    compile "com.google.code.gson:gson:$GSON_VERSION"
+
+    compile 'org.slf4j:slf4j-api:1.7.5'
+
+    compile "com.sun.jersey:jersey-core:$JERSEY_VERSION"
+    compile "com.sun.jersey:jersey-client:$JERSEY_VERSION"
+    compile "com.sun.jersey:jersey-server:$JERSEY_VERSION"
+    compile "com.sun.jersey:jersey-servlet:$JERSEY_VERSION"
+    compile "com.sun.jersey.contribs:jersey-guice:$JERSEY_VERSION"
+    compile 'javax.servlet:servlet-api:2.5';
+    compile "javax.ws.rs:jsr311-api:1.1.1"
+    compile "javax.annotation:jsr250-api:1.0"
+}
+
+

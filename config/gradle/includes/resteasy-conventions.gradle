@@ -1,0 +1,99 @@
+ext {
+    GSON_VERSION = "2.2.4"
+    RESTEASY_VERSION = "3.0.6.Final"
+    LOGBACK_VERSION = "1.1.3"
+}
+
+
+configurations {
+    all*.exclude group: 'javax.servlet', module: 'servlet-api'
+    all*.exclude group: "javax.rs.ws", module: 'jsr311-api' //we don't want JSR311 jars- they are the wrong version.
+}
+
+
+dependencies {
+
+    compile("org.jboss.resteasy:resteasy-guice:$RESTEASY_VERSION") {
+        exclude group: 'javassist'
+    }
+
+    compile "com.google.code.gson:gson:$GSON_VERSION"
+
+    compile 'javax.servlet:javax.servlet-api:3.0.1'
+    compile 'commons-net:commons-net:3.3';
+
+    compile 'org.slf4j:slf4j-api:1.7.5'
+
+    compile "ch.qos.logback:logback-core:$LOGBACK_VERSION"
+    compile "ch.qos.logback:logback-classic:$LOGBACK_VERSION"
+
+    //for Swagger
+    doclet ("com.carma:swagger-doclet:1.0.3")
+    compile ('com.wordnik:swagger-core:1.5.+')
+
+}
+
+
+
+
+task extractDocletExternalSources(type: Copy) {
+    configurations.docletExtSrc.resolve().each { from zipTree(it.getAbsolutePath()) }
+    into file("${buildDir}/shared-src")
+}
+
+task deleteDocletExternalSources(type: Delete) {
+    delete file("${buildDir}/shared-src")
+}
+
+task generateApiDocs(type: Javadoc, dependsOn: extractDocletExternalSources) {
+    source = sourceSets.main.allJava
+            .plus(fileTree(buildDir.toString() + '/shared-src').include('**/*.java'))
+
+    classpath = configurations.compile
+    destinationDir = reporting.file("rest-api-docs")
+
+    options.classpath = configurations.doclet.files.asType(List)
+    options.docletpath = configurations.doclet.files.asType(List)
+    options.doclet = "com.carma.swagger.doclet.ServiceDoclet"
+
+//    options.addStringOption("apiVersion", getArtifactVersion())
+    options.addStringOption("docBasePath", "/rest-api-docs")
+    options.addStringOption("apiBasePath", "/")
+//    options.addStringOption("docBasePath", "http://localhost:8080/rest-api-docs")
+//    options.addStringOption("apiBasePath", "http://localhost:8080")
+//    options.addBooleanOption("skipUiFiles", true)
+//    options.addStringOption("apiAuthorizationsFile", "${project.rootDir}/docs/swagger-jaxrs-doclet/api_auth.json")
+    options.addStringOption("apiInfoFile", "${project.rootDir}/docs/swagger-jaxrs-doclet/api_info.json")
+    options.addBooleanOption("sortResourcesByPath", true)
+
+    options.addBooleanOption("disableDeprecatedResourceClassExclusion", true)
+    options.addBooleanOption("disableDeprecatedModelClassExclusion", true)
+    options.addBooleanOption("disableDeprecatedOperationExclusion", true)
+    options.addBooleanOption("disableDeprecatedFieldExclusion", true)
+    options.addBooleanOption("disableDeprecatedParamExclusion", true)
+
+}
+
+task archiveApiDocs(type: Zip) {
+    from ("$project.buildDir/reports/rest-api-docs/")
+    include '*.json'
+    destinationDir file("$project.buildDir")
+    archiveName 'swaggerApiDocs.zip'
+}
+
+task generateSDKFromDocs(type: Exec, dependsOn: generateApiDocs) {
+    commandLine './generateSDKFromDocs.sh', "$project.buildDir"
+}
+
+generateApiDocs.doLast {
+    tasks.deleteDocletExternalSources.execute()
+    tasks.archiveApiDocs.execute()
+}
+
+war {
+    from "$project.buildDir/reports"
+}
+
+appengineExplodeApp.dependsOn generateApiDocs
+
+generateApiDocs.outputs.upToDateWhen({return false; })

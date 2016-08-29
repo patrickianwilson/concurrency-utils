@@ -1,0 +1,26 @@
+ext {
+    GUICE_VERSION = "3.0";
+}
+
+
+configurations {
+//    all*.exclude group: 'javax.servlet', module: 'servlet-api'
+//    all*.exclude group: "javax.rs.ws", module: 'jsr311-api' //we don't want JSR311 jars- they are the wrong version.
+//    all*.exclude group: 'javax.servlet', module: 'servlet-api'
+}
+
+
+dependencies {
+
+    compile "com.google.inject.extensions:guice-servlet:$GUICE_VERSION"
+    compile "com.google.inject.extensions:guice-multibindings:$GUICE_VERSION"
+    compile "com.google.inject:guice:$GUICE_VERSION";
+
+
+    compile 'javax.annotation:jsr250-api:1.0'
+    compile 'org.slf4j:slf4j-api:1.7.5'
+
+
+}
+
+
